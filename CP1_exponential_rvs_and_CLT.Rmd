@@ -1,0 +1,145 @@
+---
+title: "Statistical Inference"
+author: "Stephen Wade"
+date: '`r format(Sys.Date(), format="%B %d, %Y")`'
+output:
+  pdf_document:
+    includes:
+      in_header: CP1.sty
+  html_document: default
+fontsize: 12pt
+---
+
+# Exponential RV's and the Central Limit Theorem
+
+## Outline
+An exponential random variable is a model for the waiting
+time of a Poisson process with rate $\lambda$. Using the Heaviside 'step' function $\text{H}(x)$, the probability distribution 
+(that is, the cumulative distribution function) of an exponential variable is
+$$ F(x;\lambda) = (1-e^{-\lambda x}) \text{H}(x) $$
+
+Consider $n$ independently identically distributed (i.i.d.) exponential
+random variables with rate $\lambda$, which we denote $X_i$. Observations made
+of these random variables are given in lower case $x_i$. Let $\bar{X}$
+represent the mean,
+$$ \bar{X} = \sum{x_i}{n}, $$
+which is also a random variable. It is an estimator of the expected value of the exponential distribution $1/\lambda$ because
+$$ \mu_{\bar{X}} = \text{E}\left[\bar{X}\right] = \frac{1}{\lambda}. $$
+Futhermore, the expected value of the standard error $\sigma_{\bar{X}}$ is found by
+$$ {\sigma_{\bar{X}}}^2 =
+    \text{E}\left[ \left(\bar{X} - \mu_{\bar{X}}\right)^2\right] =
+    \frac{1}{n\lambda^2}. $$
+
+### Central limit theorem
+The central limit theorem (CLT) states that as $n$ gets large
+  $$ \frac{\bar{X} - \mu_{\bar{X}}}{\sigma_{\bar{X}}} \sim N(0,1) $$
+  
+### Aim and methodology
+The aim of this exercise is to provide evidence of the central limit theorem.
+A sample mean is calculated by using $n=40$ pseudo-randomly generated
+observations of the exponential distribution with $\lambda=0.2$. This process 
+is repeated $1000$
+times so we then have a pseudo-randomly generated sample distribution of
+$\bar{X}$, that is the distribution of averages of 40 exponential distributions
+with $\lambda=0.2$. Code is given in 
+the [Appendix](#appendix).
+
+## Results
+
+### Sample mean and variance 
+We wish to check that
+the sample mean of our sample from the distribution of $\bar{X}$ is, as per the
+central limit theorem, $1/\lambda=5$. We also wish to check that the sample
+variance of our sample from the distribution of $\bar{X}$ is
+$1/n\lambda^2=25/40$. The theoretical versus sample results are shown in the
+table below.
+
+```{r generate_means, echo=FALSE}
+library(knitr)
+set.seed(1234321)
+nosim <- 1000
+n <- 40
+lambda <- 0.2
+sim_exp <-matrix(rexp(nosim * n,rate=lambda), nosim)
+sxbar <- apply(sim_exp, 1, mean)
+```
+
+```{r generate_table, echo=FALSE}
+sample_m <- mean(sxbar)
+theoretical_m <- 1 / (lambda)
+sample_var <- var(sxbar)
+theoretical_var <- 1 / (n * lambda^2)
+error_m <- abs(sample_m-theoretical_m)/theoretical_m
+error_var <- abs(sample_var-theoretical_var)/theoretical_var
+
+kable(data.frame(theoretical=c(theoretical_m,theoretical_var),
+           sample=c(sample_m, sample_var),
+           'rel error'=c(error_m, error_var),
+           row.names=c('mean$(\\bar{X})$','var$(\\bar{X})$')))
+```
+
+As the table shows, the relative error is very small for both values, and
+hence the sample mean and sample variance of the sample from the distribution
+of $\bar{X}$ (the averages of 40 exponentials with $\lambda=0.2$) is very
+close to that expected by the CLT.
+
+
+### Distribution of $\bar{X}$
+
+We now wish to show that the distribution of $\bar{X}$ is approximately 
+normal as per the CLT. The histogram on the next page shows the distribution of our sample
+of $$ \frac{\bar{X} - \mu_{\bar{X}}}{\sigma_{\bar{X}}} $$ with a blue line
+showing the ideal $N(0,1)$ standard normal distribution. The $y$ axis is
+the density (rather than count), and the comparison is very reasonable, 
+suggesting that the distribution is close to normal.
+
+\pagebreak
+
+```{r histogram_CLT, fig.width=5, fig.height=4, fig.align="center", echo=FALSE}
+library(ggplot2)
+sxbnorm <- data.frame(means=(sxbar - 1/lambda) / (1/(sqrt(n)*lambda)))
+g <- ggplot(data=sxbnorm, aes(means))
+g + geom_histogram(aes(y = ..density..),
+                   binwidth=0.25,
+                   color='light grey') + 
+    xlab('normalised sample mean') +
+    scale_x_continuous(limits=c(-3,3)) +
+    stat_function(fun = dnorm, geom = "line",
+                  colour='cornflowerblue',
+                  linetype=2, 
+                  size=1) +
+    theme_bw()
+```
+
+As a bonus, I've included a quantile-quantile plot below which shows how the quantiles of the data compare to a normal distribution, the solid line being
+where the 
+samples (dots) should be if it were exactly normal. As is often the case, some
+non-normality is shown at the tails of the distribution, however this would
+decrease if $n$ were larger.
+
+```{r qqplot_CLT, fig.width=5, fig.height=4, fig.align="center", echo=FALSE}
+library(ggplot2)
+g <- ggplot(data=sxbnorm, aes(sample=means))
+g + geom_abline(slope=1,
+                intercept=0,
+                colour='cornflowerblue',
+                alpha=0.75) +
+    stat_qq(size=1.5, alpha=0.35) + 
+
+    theme_bw()
+```
+
+\pagebreak
+
+# Appendix
+
+The code to produce this report is given below.
+
+```{r ref.label='generate_means', eval=FALSE}
+```
+```{r ref.label='generate_table', eval=FALSE}
+```
+```{r ref.label='histogram_CLT', eval=FALSE}
+```
+```{r ref.label='qqplot_CLT', eval=FALSE}
+```

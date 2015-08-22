@@ -1,0 +1,165 @@
+---
+title: "Statistical Inference"
+author: "Stephen Wade"
+date: '`r format(Sys.Date(), format="%B %d, %Y")`'
+output:
+  pdf_document:
+    includes:
+      in_header: CP1.sty
+  html_document: default
+fontsize: 12pt
+---
+
+# Effect of Vitamin C on Tooth Growth in Guinea Pigs
+
+## Outline
+A study was conducted on sixty guinea pigs measuring the length of cells
+responsible for tooth growth, called odontoblasts, given a certain treatment of
+vitamin C. The guinea pigs received one
+of three dose levels (0.5, 1 and 2 mg/day) by one of two delivery methods,
+orange juice or ascorbic acid. Thus there are six groups of ten guinea pigs, 
+where each group received a particular dosage/delivery method.
+
+The three variables in the dataset are `len`, the tooth length (units not
+specified), `supp`, which is the delivery method, and `dose` which is the dose
+in mg/day.
+
+The dataset is supplied by the `datasets` package in R, and the summary
+above is found [here](https://stat.ethz.ch/R-manual/R-devel/library/datasets/html/ToothGrowth.html).
+
+The question we wish to answer is does delivery method or dosage
+affect the odontoblast measurement?
+
+## Exploratory Analysis
+
+A basic exploratory analysis is to consider a boxplot and a summary of the means
+and standard deviations of each group.
+
+```{r exploratory, fig.width=7, fig.height=3, fig.align="center", echo=FALSE}
+ library(ggplot2); library(dplyr); library(knitr); library(datasets)
+
+g <- ggplot(ToothGrowth,
+            aes(x=factor(dose),y=len),
+            title='Exploratory plot of tooth growth dataset')
+g + geom_boxplot() + facet_grid(.~supp) +
+    xlab('dose mg/day') + ylab('length') + theme_bw()
+```
+
+```{r summary_table, echo=FALSE}
+kable(summarize(group_by(ToothGrowth, supp, dose),
+                mean_length=mean(len), sd_length=sd(len), count=n()))
+```
+
+From the boxplot it can be seen that increasing dosage does
+seem to increase the odontoblast length measurement. The medians of the length of
+each group increases as the dosage increases in each panel.
+
+The summary of the means and the standard deviations shows increasing dosage
+also implies increasing length, and the standard deviation does not appear
+correlated with either dosage or delivery method.
+
+It is unclear as to whether the effect of the delivery is significant from this
+exploratory analysis, except as clearly seen at the dosage equal to 1mg/day
+level by comparing panels.
+
+## Hypothesis tests
+We will test the hypothesis that the dosage does not affect growth of
+odontoblasts given a method of delivery. For this we assume the measurements are i.i.d. distributed within
+groups with potentially unequal variances. The appropriate test is then a two-sided t-test with `unequal=TRUE` (see code in
+the [Appendix](#appendix)).
+
+Similarly, we will test the hypothesis that the method of delivery at fixed
+dosages does not have an effect on odontoblast length using the same
+assumptions.
+
+Given the small number of tests and intuitive treatments, no correction 
+(e.g. Bonferroni or other p-value adjustment) is
+considered for family-wise-error-rate (FWER) or false discovery rate.
+
+```{r tests,echo=FALSE}
+pvs <- pairwise.t.test(ToothGrowth$len,
+                       interaction(ToothGrowth$dose,ToothGrowth$supp),
+                       pool.sd=FALSE,
+                       p.adjust="none")$p.value
+OJpvs <- pvs[c('1.OJ','2.OJ'),c('0.5.OJ','1.OJ')]
+rownames(OJpvs) <- c('1mg/day','2mg.day')
+colnames(OJpvs) <- c('0.5mg/day', '1mg/day')
+VCpvs <- pvs[c('1.VC','2.VC'),c('0.5.VC','1.VC')]
+rownames(VCpvs) <- c('1mg/day','2mg.day')
+colnames(VCpvs) <- c('0.5mg/day', '1mg/day')
+DOSEpvs <- t(diag(pvs[c('0.5.VC','1.VC','2.VC'),
+                      c('0.5.OJ','1.OJ','2.OJ')]))
+colnames(DOSEpvs) <- c('0.5mg/day', '1mg/day','2mg/day')
+```
+
+### Dosage effect given delivery via orange juice
+
+The p-values for the difference in mean between dosage groups of guinea pigs
+given delivery by orange juice is given below. The main result is that all
+three values are significant. 
+There may be a decreasing effect of odontoblast growth as dosage
+increases (no regression was performed to justify this, this is merely an
+observation), as observed by the larger p-value for the comparison of
+1mg/day compared to 2mg/day.
+
+```{r OJtable,echo=FALSE}
+kable(OJpvs,
+      caption=paste('P-values $\\mu_{\\text{doseA}} - \\mu_{\\text{doseB}}$',
+                    'given Orange juice delivery'))
+```
+
+### Dosage effect given delivery via ascorbic acid
+
+The p-values for the difference in mean between dosage groups of guinea pigs
+given delivery by ascorbic acid is given below. The main result is that all
+three values are significant, with very low probabilities of observing
+as or more extreme statistics given the hypothesis that the groups are the
+same.
+
+```{r VCtable,echo=FALSE}
+kable(VCpvs,
+      caption=paste('P-values $\\mu_{\\text{doseA}} - \\mu_{\\text{doseB}}$',
+                    'given ascorbic acid delivery'))
+```
+
+### Delivery effect by dosage
+
+The p-values for the difference in mean between delivery given a fixed dosage
+is shown below. Here the results indicate that at lower dosage, the
+delivery mechanism is an important factor, however a p-value of
+`r DOSEpvs[3]` for the 2mg/day dosage suggests that at this level of dosage,
+there is a high probability of observing the statistic obtained under
+the hypothesis that the groups are the same.
+
+```{r DOSEtable,echo=FALSE}
+kable(DOSEpvs,
+      caption=paste('P-values $\\mu_{\\text{OJ}} - \\mu_{\\text{VC}}$',
+                    'by dosage level'))
+```
+
+## Conclusions and further remarks
+
+The results suggest that the dosage level has an effect on odontoblast length
+given either method of delivery. The effect of delivery is significant at
+the two lower dosage levels, 0.5mg/day and 1mg/day, whilst at the highest dosage
+level there was no significant evidence to suggest any difference in
+odontoblast length due to the method of delivery.
+
+\pagebreak
+
+# Appendix
+
+The code to produce this report is given below.
+
+```{r ref.label='exploratory',eval=FALSE}
+```
+```{r ref.label='summary_table',eval=FALSE}
+```
+```{r ref.label='tests',eval=FALSE}
+```
+```{r ref.label='OJtable',eval=FALSE}
+```
+```{r ref.label='VCtable',eval=FALSE}
+```
+```{r ref.label='DOSEtable',eval=FALSE}
+```
